@@ -1,0 +1,25 @@
+# Rust
+target/
+
+# JS
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Tauri
+apps/tray/src-tauri/gen/
+
+# Updater signing keys must never be committed — they live outside the repo
+*.key
+*.key.pub
+
+# Local state
+.env
+.env.local
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+
+# OS
+.DS_Store
+Thumbs.db

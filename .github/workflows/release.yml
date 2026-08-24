@@ -1,0 +1,150 @@
+name: Release
+
+# Releases happen here and nowhere else. Never build-and-upload from a
+# workstation — CI gives a clean checkout, a reproducible build, and an
+# auditable link between a tag and the artifacts clients will install.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  # Fails the release before anything is built if the tag and the version the
+  # client will report don't agree. A mismatch here silently breaks the
+  # updater's "is there something newer?" comparison.
+  verify-version:
+    name: Verify tag matches app version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Compare tag to tauri.conf.json
+        run: |
+          conf_version=$(jq -r .version apps/tray/src-tauri/tauri.conf.json)
+          tag_version="${TAG#v}"
+          echo "tauri.conf.json: $conf_version"
+          echo "tag:             $tag_version"
+          if [ "$conf_version" != "$tag_version" ]; then
+            echo "::error::Tag $TAG does not match tauri.conf.json version $conf_version"
+            exit 1
+          fi
+
+  create-release:
+    name: Create draft release
+    needs: verify-version
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.release_id }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      # Draft first, publish last, so clients never see a release whose
+      # latest.json is missing platforms that are still building.
+      - name: Create or reuse draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Reusing existing release $TAG"
+          else
+            gh release create "$TAG" --draft --title "$TAG" \
+              --notes "Automated release. See the commit log for changes."
+          fi
+          id=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq .id \
+            || gh api "repos/${{ github.repository }}/releases" --jq ".[] | select(.tag_name==\"$TAG\") | .id")
+          echo "release_id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: windows-x86_64
+            os: windows-latest
+            args: ""
+          - label: linux-x86_64
+            os: ubuntu-22.04
+            args: ""
+          # Universal binary so one artifact covers Intel and Apple Silicon.
+          # Unsigned and un-notarised by choice — see plans/architecture.md.
+          - label: macos-universal
+            os: macos-latest
+            args: "--target universal-apple-darwin"
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          key: ${{ matrix.label }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Without these the updater artifacts are unsigned and every client
+          # will refuse the update. That is the correct behaviour — but it means
+          # a missing secret shows up as "nothing ever updates", so keep them set.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: apps/tray
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          includeUpdaterJson: true
+          args: ${{ matrix.args }}
+
+  publish-release:
+    name: Publish release
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      # Publishing last is what makes `releases/latest/download/latest.json`
+      # — the URL every client polls — flip atomically once every platform is in.
+      - name: Undraft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X PATCH \
+            "repos/${{ github.repository }}/releases/${{ needs.create-release.outputs.release_id }}" \
+            -F draft=false -f make_latest=true

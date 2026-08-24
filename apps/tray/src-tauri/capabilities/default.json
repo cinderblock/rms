@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The status window only talks to this app's own commands, so it needs no plugin permissions — the updater, notification, dialog and autostart plugins are driven entirely from Rust.",
+  "windows": ["status"],
+  "permissions": ["core:default"]
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Remote Mgmt Daemon</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Remote Mgmt Daemon</h1>
+
+      <dl class="facts">
+        <dt>Version</dt>
+        <dd id="version">…</dd>
+        <dt>Control server</dt>
+        <dd id="server">not configured</dd>
+      </dl>
+
+      <label class="row">
+        <input type="checkbox" id="autostart" />
+        <span>Start automatically at login</span>
+      </label>
+
+      <button id="check">Check for updates</button>
+      <p id="result" role="status"></p>
+
+      <p class="hint">
+        Updates are also checked automatically every hour, and can be triggered
+        by the control server.
+      </p>
+    </main>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

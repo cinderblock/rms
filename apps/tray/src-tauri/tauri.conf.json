@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Remote Mgmt Daemon",
+  "mainBinaryName": "remote-mgmt-daemon",
+  "version": "0.1.0",
+  "identifier": "com.cinderblock.remote-mgmt-daemon",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "status",
+        "title": "Remote Mgmt Daemon",
+        "width": 420,
+        "height": 320,
+        "resizable": false,
+        "visible": false,
+        "skipTaskbar": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["nsis", "deb", "appimage", "app", "dmg"],
+    "category": "Utility",
+    "shortDescription": "Remote management agent",
+    "longDescription": "Background agent that connects to a self-hosted control server and executes commands.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libayatana-appindicator3-1"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/cinderblock/remote-mgmt-daemon/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI1NTAxOTRGNTQyMTQ3NDMKUldSRFJ5RlVUeGxRSlROcVlnUG44N2ZVQjgwWE00aVdGWmZYYnk4YkRWbGg4OUFZTS9Pc1pKVEkK",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}
