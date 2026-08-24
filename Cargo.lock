@@ -2989,7 +2989,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rmd-tray"
+name = "rms-tray"
 version = "0.1.0"
 dependencies = [
  "serde",

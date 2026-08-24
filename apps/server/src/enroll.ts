@@ -1,4 +1,4 @@
-import { EnrollRequest, type EnrollError, type EnrollResponse } from "@rmd/protocol";
+import { EnrollRequest, type EnrollError, type EnrollResponse } from "@rms/protocol";
 
 import { type Db, SettingKey, getSetting } from "./db.ts";
 import { checkEnrollmentAllowed, recordAttempt } from "./ratelimit.ts";

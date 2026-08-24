@@ -15,14 +15,14 @@ import { generatePassphrase, generateToken, hashPassphrase } from "./secrets.ts"
  * beats a landgrab.
  */
 
-const DB_PATH = process.env.RMD_DB ?? "./data/rmd.sqlite";
-const PORT = Number(process.env.RMD_PORT ?? 8787);
+const DB_PATH = process.env.RMS_DB ?? "./data/rms.sqlite";
+const PORT = Number(process.env.RMS_PORT ?? 8787);
 
 /**
  * Number of reverse proxies in front. Must be set deliberately — see `ip.ts`
  * for why guessing is worse than ignoring the header.
  */
-const TRUSTED_PROXY_HOPS = Number(process.env.RMD_TRUSTED_PROXY_HOPS ?? 0);
+const TRUSTED_PROXY_HOPS = Number(process.env.RMS_TRUSTED_PROXY_HOPS ?? 0);
 
 /** An unclaimed admin setup token expires rather than waiting forever. */
 const SETUP_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -31,11 +31,11 @@ mkdirSync(dirname(DB_PATH), { recursive: true });
 const db = openDatabase(DB_PATH);
 
 if (getSetting(db, SettingKey.EnrollmentPassphraseHash) === null) {
-  const passphrase = process.env.RMD_ENROLLMENT_PASSPHRASE ?? generatePassphrase();
+  const passphrase = process.env.RMS_ENROLLMENT_PASSPHRASE ?? generatePassphrase();
   setSetting(db, SettingKey.EnrollmentPassphraseHash, await hashPassphrase(passphrase));
   setSetting(db, SettingKey.EnrollmentOpen, "1");
   setSetting(db, SettingKey.EnrollmentLockedUntil, "0");
-  setSetting(db, SettingKey.ServerName, process.env.RMD_SERVER_NAME ?? "control");
+  setSetting(db, SettingKey.ServerName, process.env.RMS_SERVER_NAME ?? "control");
 
   // Hashed like any other credential — a stolen database must not yield a
   // working admin-registration link.
@@ -66,4 +66,4 @@ export default {
   fetch: app.fetch,
 };
 
-console.log(`rmd-server listening on :${PORT} (db ${DB_PATH})`);
+console.log(`rms-server listening on :${PORT} (db ${DB_PATH})`);

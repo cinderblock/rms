@@ -1,4 +1,4 @@
-# Remote Management Daemon — Architecture & Bootstrap Plan
+# RMS (Remote Management System) — Architecture & Bootstrap Plan
 
 > Living document. Read this first in any session on this project. Update it in the
 > same turn as any discovery that contradicts it.
@@ -19,7 +19,8 @@ self-hosted control server and executes commands securely. Plus:
 
 | Thing | Value |
 |---|---|
-| Repo root (dev) | `C:\Users\camer\git\vibed-out\remote-mgmt-daemon` |
+| GitHub repo | `cinderblock/rms` — public (required for unauthenticated updater fetches) |
+| Repo root (dev) | `C:\Users\camer\git\vibed-out\remote-mgmt-daemon` — the *directory* still has the old name; the project is `rms` |
 | Primary branch | `master` (system-level `init.defaultBranch`, deliberate) |
 | Dev machine | Windows 11 Pro N 26200 |
 | Toolchains present | bun 1.3.0, node 24.18.0, rustc/cargo 1.97.1, gh 2.83.2, pnpm 11.10.0 |
@@ -105,8 +106,8 @@ fast with `no_interactive_session` rather than hanging.
 This gives the "interact with the user session" capability with no token
 impersonation, no session-0 UI hacks, and a natural failure mode.
 
-**IPC:** Windows named pipe (`\\.\pipe\rmd-agent`) with an explicit DACL granting
-only the logged-on user + SYSTEM; Unix domain socket at `$XDG_RUNTIME_DIR/rmd-agent.sock`
+**IPC:** Windows named pipe (`\\.\pipe\rms-agent`) with an explicit DACL granting
+only the logged-on user + SYSTEM; Unix domain socket at `$XDG_RUNTIME_DIR/rms-agent.sock`
 mode 0600 elsewhere. Length-prefixed JSON frames, same envelope shape as the
 WS protocol so one codec serves both.
 
@@ -119,7 +120,7 @@ WS protocol so one codec serves both.
 ### Repo layout
 
 ```
-remote-mgmt-daemon/
+rms/
 ├─ Cargo.toml                  # Rust workspace
 ├─ package.json                # Bun workspace root
 ├─ bun.lock
@@ -162,8 +163,8 @@ No detour to the management UI to mint a per-device code first.
   stored via the OS keystore (`keyring` crate → DPAPI/Keychain/Secret Service),
   falling back to a 0600 file with a clear warning. **The server never sees it.**
 - First run asks for the **control server base URL** and the **enrollment
-  passphrase** (tray dialog, or `--server` / `RMD_SERVER` and
-  `RMD_ENROLL_PASSPHRASE` for headless installs).
+  passphrase** (tray dialog, or `--server` / `RMS_SERVER` and
+  `RMS_ENROLL_PASSPHRASE` for headless installs).
 - The client `POST`s an enrollment request carrying its public key, the
   passphrase, and a self-described identity block (below). The server verifies
   the passphrase and records the public key as a permanent credential.
@@ -293,7 +294,7 @@ Ordered so that the self-updater lands before there's much to update.
 
 ## Findings / gotchas
 
-- **Updater signing key lives at `~/.rmd-updater/updater.key`** (outside the repo,
+- **Updater signing key lives at `~/.rms-updater/updater.key`** (outside the repo,
   generated 2026-08-24, no passphrase). Its public half is committed in
   `tauri.conf.json`. If that private key is lost, **no existing client can ever
   be updated again** — they will reject artifacts signed by any other key. Back
@@ -315,7 +316,7 @@ Ordered so that the self-updater lands before there's much to update.
   in front the real client is the last entry and everything left of it is
   attacker-supplied. Taking the leftmost entry — the common mistake — lets a
   caller present a fresh IP per request and walk straight through the per-IP
-  enrollment budget. `RMD_TRUSTED_PROXY_HOPS` defaults to `0` (ignore the header
+  enrollment budget. `RMS_TRUSTED_PROXY_HOPS` defaults to `0` (ignore the header
   entirely); it **must** be set to `1` once this is deployed behind Caddy, or
   every request will look like it came from the proxy and share one budget.
 - **Diceware was dropped for grouped base32.** A credible word list is the full

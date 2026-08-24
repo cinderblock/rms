@@ -2,7 +2,7 @@ import {
   DEFAULT_PASSPHRASE_GROUPS,
   DEFAULT_PASSPHRASE_GROUP_SIZE,
   MIN_PASSPHRASE_LENGTH,
-} from "@rmd/protocol";
+} from "@rms/protocol";
 
 /**
  * Generating and checking the shared enrollment passphrase.

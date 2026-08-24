@@ -1,4 +1,4 @@
-# remote-mgmt-daemon
+# rms
 
 A thin client that installs on your machines, dials home to a self-hosted control
 server over an outbound WebSocket, and executes commands. Plus the control server
@@ -34,7 +34,6 @@ mis-signed artifact is refused.
 apps/tray/          Tauri tray app — status window, update triggers, and
                     (from phase 4) the user-session command executor
 apps/agentd/        privileged background service                 [phase 4]
-apps/server/        Bun + Hono control server & management UI      [phase 2]
 apps/server/        Bun + Hono control server — enrollment today,
                     passkey auth and management UI next
 crates/             shared Rust: transport, wire types, local IPC  [phase 3+]
@@ -74,13 +73,13 @@ afterwards — write them down.
 
 | Variable | Default | Notes |
 |---|---|---|
-| `RMD_DB` | `./data/rmd.sqlite` | SQLite file; created on demand |
-| `RMD_PORT` | `8787` | |
-| `RMD_SERVER_NAME` | `control` | Echoed to clients so they can confirm where they landed |
-| `RMD_ENROLLMENT_PASSPHRASE` | *generated* | Set to choose your own on first boot |
-| `RMD_TRUSTED_PROXY_HOPS` | `0` | Number of reverse proxies in front |
+| `RMS_DB` | `./data/rms.sqlite` | SQLite file; created on demand |
+| `RMS_PORT` | `8787` | |
+| `RMS_SERVER_NAME` | `control` | Echoed to clients so they can confirm where they landed |
+| `RMS_ENROLLMENT_PASSPHRASE` | *generated* | Set to choose your own on first boot |
+| `RMS_TRUSTED_PROXY_HOPS` | `0` | Number of reverse proxies in front |
 
-`RMD_TRUSTED_PROXY_HOPS` deserves a note. It defaults to `0`, which means
+`RMS_TRUSTED_PROXY_HOPS` deserves a note. It defaults to `0`, which means
 `X-Forwarded-For` is ignored entirely — trusting that header when nothing is
 rewriting it lets a caller claim a fresh IP on every request and walk straight
 through the per-IP rate limit. **Set it to `1` when deploying behind a single
@@ -104,7 +103,7 @@ bun run check         # fmt + clippy, same as CI
 The tray app registers itself for autostart at login on first run. Quit it from
 the tray menu; closing the status window only hides it.
 
-Set `RMD_LOG=debug` for verbose logging.
+Set `RMS_LOG=debug` for verbose logging.
 
 ## Releasing
 

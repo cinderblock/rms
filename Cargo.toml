@@ -6,7 +6,7 @@ members = ["apps/tray/src-tauri"]
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/cinderblock/remote-mgmt-daemon"
+repository = "https://github.com/cinderblock/rms"
 rust-version = "1.85"
 
 [workspace.dependencies]

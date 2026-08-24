@@ -8,10 +8,10 @@
       },
     },
     "apps/server": {
-      "name": "@rmd/server",
+      "name": "@rms/server",
       "version": "0.1.0",
       "dependencies": {
-        "@rmd/protocol": "workspace:*",
+        "@rms/protocol": "workspace:*",
         "hono": "^4.13.4",
         "zod": "^4.4.3",
       },
@@ -21,14 +21,14 @@
       },
     },
     "apps/tray": {
-      "name": "@rmd/tray",
+      "name": "@rms/tray",
       "version": "0.1.0",
       "devDependencies": {
         "@tauri-apps/cli": "^2.11.0",
       },
     },
     "packages/protocol": {
-      "name": "@rmd/protocol",
+      "name": "@rms/protocol",
       "version": "0.1.0",
       "dependencies": {
         "zod": "^4.4.3",
@@ -40,11 +40,11 @@
     },
   },
   "packages": {
-    "@rmd/protocol": ["@rmd/protocol@workspace:packages/protocol"],
+    "@rms/protocol": ["@rms/protocol@workspace:packages/protocol"],
 
-    "@rmd/server": ["@rmd/server@workspace:apps/server"],
+    "@rms/server": ["@rms/server@workspace:apps/server"],
 
-    "@rmd/tray": ["@rmd/tray@workspace:apps/tray"],
+    "@rms/tray": ["@rms/tray@workspace:apps/tray"],
 
     "@tauri-apps/cli": ["@tauri-apps/cli@2.11.4", "", { "optionalDependencies": { "@tauri-apps/cli-darwin-arm64": "2.11.4", "@tauri-apps/cli-darwin-x64": "2.11.4", "@tauri-apps/cli-linux-arm-gnueabihf": "2.11.4", "@tauri-apps/cli-linux-arm64-gnu": "2.11.4", "@tauri-apps/cli-linux-arm64-musl": "2.11.4", "@tauri-apps/cli-linux-riscv64-gnu": "2.11.4", "@tauri-apps/cli-linux-x64-gnu": "2.11.4", "@tauri-apps/cli-linux-x64-musl": "2.11.4", "@tauri-apps/cli-win32-arm64-msvc": "2.11.4", "@tauri-apps/cli-win32-ia32-msvc": "2.11.4", "@tauri-apps/cli-win32-x64-msvc": "2.11.4" }, "bin": { "tauri": "tauri.js" } }, "sha512-R8xGtMpwyetawSqm9kYOuMmEqkhUbvcUy8n0aNXIxollKBLESUu5f4Fx+64hgASYm1H+jSWq6jCW6zqTnH6hqQ=="],
 

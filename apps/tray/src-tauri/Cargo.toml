@@ -1,5 +1,5 @@
 [package]
-name = "rmd-tray"
+name = "rms-tray"
 description = "Remote management agent — tray app and user-session executor"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "remote-mgmt-daemon"
+name = "rms"
 path = "src/main.rs"
 
 [build-dependencies]

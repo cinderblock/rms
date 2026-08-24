@@ -55,7 +55,7 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
 fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_env("RMD_LOG")
+            tracing_subscriber::EnvFilter::try_from_env("RMS_LOG")
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();

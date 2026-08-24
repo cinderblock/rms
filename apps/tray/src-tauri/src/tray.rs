@@ -49,7 +49,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
         // which would turn the app icon into a solid blob in the macOS menu bar.
         // TODO(macos): ship a dedicated monochrome glyph and set this to true.
         .icon_as_template(false)
-        .tooltip(format!("Remote Mgmt Daemon v{version}"))
+        .tooltip(format!("RMS v{version}"))
         .menu(&menu)
         // Left click should not open the menu on Windows/Linux; it opens the
         // status window instead. macOS keeps the menu on left click by
