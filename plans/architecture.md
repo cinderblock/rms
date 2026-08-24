@@ -362,12 +362,18 @@ Ordered so that the self-updater lands before there's much to update.
 
 ## Open questions for the user
 
-Genuinely blocking right now — only these two:
+Genuinely blocking right now — only this one:
 
-1. **Repo name**, and authorization to create it public on GitHub and push.
-   Public is required for the updater to fetch `latest.json` unauthenticated.
-   Until this exists, CI has never run and Phase 1 cannot be *proven*.
-2. **Authorization to set the two signing secrets** (`gh secret set`).
+1. **Authorization to set the two signing secrets** — `gh secret set
+   TAURI_SIGNING_PRIVATE_KEY` (contents of `~/.rms-updater/updater.key`) and
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty string) on `cinderblock/rms`.
+   Without them `release.yml` produces unsigned artifacts that every client
+   correctly refuses, so Phase 1 stays unproven.
+
+Resolved:
+
+- ~~Repo name, and authorization to create it public and push.~~
+  `cinderblock/rms`, public, created 2026-08-24, default branch `master`.
 
 Needed later, not now — do not treat these as blockers:
 
@@ -417,3 +423,9 @@ Needed later, not now — do not treat these as blockers:
   `Get-Process bun | Stop-Process -Force` killed two unrelated Bun processes on
   Cameron's machine, one of which had been running for four days. Kill the
   specific PID that was started, never every process sharing a name.
+- **2026-08-24** — Project renamed to **rms**. `github.com/cinderblock/rms`
+  created public, default branch `master`, initial push done. The rename went all
+  the way through — bundle identifier, binary name, crate, npm scopes, `RMS_*`
+  env prefix, IPC pipe name — because all of those are free to change while
+  nothing is installed and expensive afterwards. The working *directory* keeps
+  its old name.
