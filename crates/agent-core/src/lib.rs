@@ -8,13 +8,17 @@
 //!
 //! See `plans/architecture.md` → "Three-process model on a managed host".
 
+pub mod backoff;
 pub mod config;
+pub mod endpoint;
 pub mod enroll;
 pub mod frames;
 pub mod identity;
 pub mod keys;
 
+pub use backoff::Backoff;
 pub use config::{AgentConfig, ConfigError, is_enrolled};
+pub use endpoint::agent_ws_url;
 pub use enroll::{EnrollError, EnrollResponse, enroll};
 pub use frames::{AuthResponse, ClientFrame, ServerFrame};
 pub use identity::DeviceIdentity;
