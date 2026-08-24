@@ -1,4 +1,5 @@
-//! Shared agent logic: device identity, the keypair, and enrollment.
+//! Shared agent logic: device identity, the keypair, enrollment, and the
+//! client-dialed control connection.
 //!
 //! This lives in its own crate rather than inside the tray app because of where
 //! the project is going. Today the tray hosts it in-process; from phase 4 the
@@ -15,6 +16,7 @@ pub mod enroll;
 pub mod frames;
 pub mod identity;
 pub mod keys;
+pub mod transport;
 
 pub use backoff::Backoff;
 pub use config::{AgentConfig, ConfigError, is_enrolled};
@@ -23,3 +25,4 @@ pub use enroll::{EnrollError, EnrollResponse, enroll};
 pub use frames::{AuthResponse, ClientFrame, ServerFrame};
 pub use identity::DeviceIdentity;
 pub use keys::{DeviceKey, KeyError};
+pub use transport::{BuiltinHandler, CommandHandler, TransportError, run_forever, run_session};
