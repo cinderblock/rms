@@ -36,7 +36,8 @@ apps/tray/          Tauri tray app — status window, update triggers, and
 apps/agentd/        privileged background service                 [phase 4]
 apps/server/        Bun + Hono control server — enrollment today,
                     passkey auth and management UI next
-crates/             shared Rust: transport, wire types, local IPC  [phase 3+]
+crates/agent-core/  device identity, the Ed25519 keypair, enrollment —
+                    hosted by the tray today, by `agentd` from phase 4
 packages/protocol/  zod schemas — the single source of truth for
                     anything crossing a network boundary
 plans/              living design docs — read these first
@@ -104,6 +105,18 @@ The tray app registers itself for autostart at login on first run. Quit it from
 the tray menu; closing the status window only hides it.
 
 Set `RMS_LOG=debug` for verbose logging.
+
+To exercise enrollment against a locally running server:
+
+```sh
+RMS_SERVER=http://127.0.0.1:8787 RMS_ENROLL_PASSPHRASE=<passphrase> \
+  cargo run -p rms-agent-core --example enroll
+
+cargo run -p rms-agent-core --example forget   # drop the local device key
+```
+
+`forget` removes only this machine's key from the OS keystore — the server-side
+device record survives and has to be deleted separately.
 
 ## Releasing
 

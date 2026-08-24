@@ -1,0 +1,40 @@
+[package]
+name = "rms-agent-core"
+description = "Device identity, enrollment and control-server transport for the RMS agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64.workspace = true
+ed25519-dalek.workspace = true
+gethostname.workspace = true
+# keyring 4 splits each platform backend into its own crate; the default `v1`
+# feature pulls in Keychain, Windows Credential Manager and Secret Service, which
+# is exactly the set we want. Don't add `default-features = false` here.
+keyring.workspace = true
+os_info.workspace = true
+getrandom.workspace = true
+# rustls rather than the platform TLS stack, for one behaviour on every OS.
+# `rustls-native-certs` reads the OS trust store, so a self-hosted server behind
+# an internal CA works without recompiling the agent.
+reqwest = { workspace = true, features = [
+  "json",
+  "charset",
+  "http2",
+  "rustls",
+  "rustls-native-certs",
+], default-features = false }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+whoami.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+winreg.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

@@ -283,7 +283,12 @@ Ordered so that the self-updater lands before there's much to update.
       - [x] Wire schemas for enrollment + auth in `packages/protocol`, with tests
       - [x] `POST /api/enroll` with argon2id verification, per-IP and global rate
             limiting, idempotent retries, and re-enrollment flagging
-      - [ ] Rust side: keypair generation, keystore, enrollment client
+      - [x] Rust side: `crates/agent-core` — identity collection, Ed25519
+            keypair in the OS keystore, enrollment client. Verified against the
+            real server: a Rust client enrolled into the Bun server, and the
+            stored record matched the key it presented.
+      - [ ] Persist the server URL + device id locally after enrollment
+      - [ ] Wire enrollment into the tray's first-run flow
       - [ ] WebSocket transport and challenge–response auth
       - [ ] Rust type generation from the zod schemas (JSON Schema → `typify`)
 - [ ] **Phase 4 — Service split.** `agentd` as a Windows service / systemd unit,
@@ -330,6 +335,23 @@ Ordered so that the self-updater lands before there's much to update.
 - **Check the rate-limit budget *before* verifying the passphrase.** argon2id is
   deliberately expensive; verifying first would let an unthrottled caller burn
   the server's CPU without ever guessing anything.
+- **Crate API drift caught while building `agent-core`**, all newer than the
+  versions most examples online assume:
+  - `reqwest` 0.13 renamed the `rustls-tls` feature to `rustls`; roots come from
+    `rustls-native-certs` or `webpki-roots` as a separate feature.
+  - `keyring` 4 split every platform backend into its own crate. Its `default`
+    → `v1` feature already pulls Keychain / Windows Credential Manager / Secret
+    Service, so **don't** set `default-features = false` on it.
+  - `rand` 0.10 no longer exposes `rand::rngs::OsRng`, and `rand`/`ed25519-dalek`
+    track `rand_core` independently. Seeding `SigningKey::from_bytes` with 32
+    bytes from `getrandom` sidesteps the whole version dance — `rand` is not a
+    dependency at all now.
+  - `whoami` 2 returns `Result` from `username()`.
+- **Kill background processes by PID, never by name.** `kill $!` in Bash on
+  Windows kills a wrapper, not the `bun` process it launched, so smoke-test
+  servers survive and hold their SQLite files open. The fix is to find the
+  actual PID and stop that one — *not* `Get-Process bun | Stop-Process`, which
+  is how two unrelated processes got killed earlier in this project.
 - **Unverified: `tauri-action` + Bun workspaces.** `apps/tray` has a
   `package.json` but no lockfile of its own (Bun hoists to the root), so
   tauri-action will probably fall back to `npm install` inside `apps/tray`.
@@ -429,3 +451,15 @@ Needed later, not now — do not treat these as blockers:
   env prefix, IPC pipe name — because all of those are free to change while
   nothing is installed and expensive afterwards. The working *directory* keeps
   its old name.
+- **2026-08-24** — **CI is green on `cinderblock/rms`** (run `32768052465`:
+  TypeScript, Rust ubuntu-22.04, Rust windows-latest all pass). Note that an
+  earlier watcher reported success falsely — a second push cancelled the first
+  run's Windows job via `cancel-in-progress`, and the script read across two
+  different runs. Pin a watch to a specific run id.
+  `crates/agent-core` added: identity collection (real `MachineGuid` from the
+  Windows registry), Ed25519 keypair in the OS keystore, enrollment client.
+  **Verified cross-stack**, which is the point: a Rust client enrolled into the
+  running Bun server, the stored `public_key` matched what it presented, and the
+  audit trail recorded both the success and a wrong-passphrase failure. Also
+  confirmed the keystore round-trips store → load → delete against the real
+  Windows Credential Manager.
