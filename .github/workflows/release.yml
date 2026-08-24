@@ -59,19 +59,28 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Reusing existing release $TAG"
-          else
-            gh release create "$TAG" --draft --title "$TAG" \
-              --notes "Automated release. See the commit log for changes."
-          fi
-
-          # Always resolve via the list endpoint. `releases/tags/<tag>` 404s for
-          # DRAFT releases, and on failure `gh api` writes the error body to
-          # stdout — so a `cmd || fallback` inside $( ) captures the 404 JSON as
-          # if it were the answer. That silently poisoned every downstream step.
+          # Look for an existing release first, so re-running a release reuses
+          # its draft instead of stacking up duplicates.
+          #
+          # `releases/tags/<tag>` is not usable here: it 404s for DRAFT releases,
+          # and on failure `gh api` writes the error body to stdout, so a
+          # `cmd || fallback` inside $( ) captures the 404 JSON as if it were the
+          # answer. That is what silently poisoned the first v0.1.0 run.
           id=$(gh api --paginate "repos/${{ github.repository }}/releases" \
             --jq ".[] | select(.tag_name==\"$TAG\") | .id" | head -n1)
+
+          if [ -n "$id" ]; then
+            echo "Reusing existing release $id for $TAG"
+          else
+            # Take the id from the creation response rather than looking it up
+            # afterwards. The list endpoint is eventually consistent — it came
+            # back empty a third of a second after a successful create — so a
+            # create-then-search sequence is a race that fails intermittently.
+            id=$(gh api -X POST "repos/${{ github.repository }}/releases" \
+              -f tag_name="$TAG" -f name="$TAG" -F draft=true \
+              -f body="Automated release. See the commit log for changes." \
+              --jq .id)
+          fi
 
           # A non-numeric id means the lookup failed. Fail here rather than let
           # tauri-action quietly "skip all uploads" and still exit 0.
