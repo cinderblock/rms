@@ -1,6 +1,7 @@
 // Release builds have no console window — this is a background agent, not a CLI.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod commands;
 mod tray;
 mod updater;
 
@@ -65,6 +66,10 @@ async fn enroll(
             .await
             .map_err(|err| err.to_string())?;
 
+    // Connect straight away rather than making the user restart the app to
+    // finish joining a fleet.
+    spawn_control_connection(&app);
+
     Ok(Enrolled {
         device_id: response.device_id,
         display_name: response.display_name,
@@ -106,6 +111,27 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
     } else {
         auto.disable().map_err(|e| e.to_string())
     }
+}
+
+/// Start the control connection if this machine has enrolled.
+///
+/// Nothing is retried here when the device isn't enrolled: the connection can
+/// only start once the user has been through the enrollment form, and the
+/// `enroll` command starts it directly rather than making them restart the app.
+fn spawn_control_connection(app: &AppHandle) {
+    let (Ok(Some(config)), Ok(Some(key))) = (
+        rms_agent_core::AgentConfig::load(),
+        rms_agent_core::DeviceKey::load(),
+    ) else {
+        tracing::info!("not enrolled; not connecting to a control server");
+        return;
+    };
+
+    let version = app.package_info().version.to_string();
+    let handler = commands::TrayCommandHandler::shared(app.clone(), version.clone());
+
+    tracing::info!(server = %config.server_url, "starting control connection");
+    tauri::async_runtime::spawn(rms_agent_core::run_forever(config, key, handler, version));
 }
 
 fn main() {
@@ -170,6 +196,7 @@ fn main() {
                 let _ = window.set_focus();
             }
 
+            spawn_control_connection(&handle);
             updater::spawn_timer(handle, updater::DEFAULT_INTERVAL);
 
             Ok(())

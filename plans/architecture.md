@@ -267,9 +267,13 @@ Ordered so that the self-updater lands before there's much to update.
       - [x] Tray icon, menu, hidden status window, autostart-at-login
       - [x] Update check with a re-entrancy gate; timer + menu triggers
       - [x] `release.yml` with signing, draft-then-publish, version guard
-      - [ ] **Blocked:** GitHub repo doesn't exist yet, so nothing has been
-            pushed and the release workflow has never run. Needs the repo
-            created, the signing secrets added, and one real tag→upgrade test.
+      - [x] Repo created, signing secrets set, `v0.1.0` **published**. Verified
+            unauthenticated at the exact URL clients poll
+            (`releases/latest/download/latest.json`): HTTP 200, version 0.1.0,
+            all three OS families present with non-empty signatures.
+      - [ ] **Remaining:** tag `v0.1.1` and watch an installed `v0.1.0` take it
+            unattended. Until that happens the *release* path is proven but the
+            *upgrade* path is not.
 - [ ] **Phase 2 — Control server skeleton.** Bun + Hono, SQLite, passkey setup
       flow with claim token, management UI shell, `/api/health`.
       - [x] Hono app, SQLite with an append-only migration runner, `/api/health`
@@ -516,3 +520,18 @@ Needed later, not now — do not treat these as blockers:
   connection registry, and the session state machine — 83 TS tests. Rust side:
   session frame types with an `Unknown` catch-all so a newer server can't knock
   older agents off the fleet — 26 tests.
+- **2026-08-24** — **`v0.1.0` is published.** Third run went green through
+  `verify-artifacts` and `publish-release`; 10 assets. Confirmed independently by
+  fetching `https://github.com/cinderblock/rms/releases/latest/download/latest.json`
+  unauthenticated: HTTP 200, version 0.1.0, `linux-x86_64` / `windows-x86_64` /
+  `darwin-aarch64` / `darwin-x86_64` all present, every signature non-empty.
+  While watching it, found that the `verify-artifacts` guard I had just written
+  was itself too weak — Linux alone emits three platform keys, so a
+  "≥3 platforms" test passes with no Windows and no macOS. Now checks each OS
+  family by name. The in-flight run used the weak version, hence verifying by
+  hand above rather than trusting its green.
+  Transport finished on both sides: `crates/agent-core/transport.rs` (connect →
+  authenticate → serve, backoff, command dispatch) wired into the tray, which
+  now connects on startup when enrolled and immediately after enrollment.
+  `update.check` from the server is live — the third update trigger.
+  43 Rust tests, 83 TS tests.

@@ -27,6 +27,9 @@ const STARTUP_DELAY: Duration = Duration::from_secs(30);
 pub enum Trigger {
     Timer,
     Menu,
+    /// The control server asked. Exists so a broken timer or a broken tray still
+    /// leaves a way to push a fix.
+    Server,
 }
 
 #[derive(Debug)]
