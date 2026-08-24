@@ -355,6 +355,26 @@ Ordered so that the self-updater lands before there's much to update.
   servers survive and hold their SQLite files open. The fix is to find the
   actual PID and stop that one — *not* `Get-Process bun | Stop-Process`, which
   is how two unrelated processes got killed earlier in this project.
+- **A green release matrix does not mean anything shipped.** The first `v0.1.0`
+  run reported success on all three builds and produced a release with **zero
+  assets**. `tauri-action` logs `No releaseId or tagName provided, skipping all
+  uploads...` and **exits 0**. Never treat job status as evidence of a release;
+  `release.yml` now has a `verify-artifacts` job that checks `latest.json`
+  exists, lists ≥3 platforms, and carries a non-empty signature for each.
+- **`gh api` writes the error body to *stdout* on failure.** So
+  `id=$(gh api ... --jq .id || fallback)` captures the 404 JSON as if it were the
+  answer. That is what poisoned the first run — `release_id` literally became
+  `{"message":"Not Found",…}`. Redirect or check explicitly; never rely on
+  `||` inside a command substitution to discard a failed call's output.
+- **GitHub's release list endpoint is eventually consistent.** A draft created
+  with `gh release create` was *not* in `GET /releases` a third of a second
+  later. Create-then-search is a race. `gh api -X POST .../releases --jq .id`
+  returns the id in the same response — use that.
+- **GitHub runs a tag-triggered workflow from the *tagged commit*.** Fixing
+  `release.yml` on `master` does nothing for an existing tag. Either re-tag, or
+  use `workflow_dispatch` with a tag input — dispatch runs the workflow from the
+  default branch while checking out the tag, which is far better for iterating
+  on the pipeline.
 - **Unverified: `tauri-action` + Bun workspaces.** `apps/tray` has a
   `package.json` but no lockfile of its own (Bun hoists to the root), so
   tauri-action will probably fall back to `npm install` inside `apps/tray`.
@@ -384,6 +404,9 @@ Ordered so that the self-updater lands before there's much to update.
   process list on both Windows and Linux. Env var, stdin, or a file.
 - **Don't hand-write the wire types twice.** Generate the Rust side.
 - **Don't release from a CLI.** Tag, and let CI do it.
+- **Don't trust a green release run.** Check the artifacts. The build succeeding
+  and the release shipping are different facts, and the pipeline has already
+  proven it will report the first while failing the second.
 
 ## Open questions for the user
 
@@ -480,3 +503,16 @@ Needed later, not now — do not treat these as blockers:
   snake_case automatically, but does **not** touch return values — a `Serialize`
   struct needs `#[serde(rename_all = "camelCase")]` or the frontend silently
   reads `undefined`.
+- **2026-08-24** — Signing secrets set on the repo (Cameron authorised it).
+  `v0.1.0` tagged. **The first release run was a false green** — all three builds
+  "succeeded" and shipped nothing; see the gotchas above for the `gh api`
+  stdout-on-error bug that caused it. Fixed, plus a `verify-artifacts` gate so a
+  release that ships nothing can never be published again. A second run then
+  failed at that new guard on an eventual-consistency race in the release list
+  endpoint; fixed by taking the id from the create response. Third run
+  (`32776719065`, dispatched from `master` so the fix applies without re-tagging)
+  is in flight.
+  Server side meanwhile: Ed25519 challenge–response (`deviceauth.ts`), the
+  connection registry, and the session state machine — 83 TS tests. Rust side:
+  session frame types with an `Unknown` catch-all so a newer server can't knock
+  older agents off the fleet — 26 tests.
