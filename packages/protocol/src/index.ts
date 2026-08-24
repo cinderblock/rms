@@ -10,3 +10,4 @@
 
 export * from "./identity.ts";
 export * from "./enrollment.ts";
+export * from "./session.ts";
