@@ -65,8 +65,22 @@ jobs:
             gh release create "$TAG" --draft --title "$TAG" \
               --notes "Automated release. See the commit log for changes."
           fi
-          id=$(gh api "repos/${{ github.repository }}/releases/tags/$TAG" --jq .id \
-            || gh api "repos/${{ github.repository }}/releases" --jq ".[] | select(.tag_name==\"$TAG\") | .id")
+
+          # Always resolve via the list endpoint. `releases/tags/<tag>` 404s for
+          # DRAFT releases, and on failure `gh api` writes the error body to
+          # stdout — so a `cmd || fallback` inside $( ) captures the 404 JSON as
+          # if it were the answer. That silently poisoned every downstream step.
+          id=$(gh api --paginate "repos/${{ github.repository }}/releases" \
+            --jq ".[] | select(.tag_name==\"$TAG\") | .id" | head -n1)
+
+          # A non-numeric id means the lookup failed. Fail here rather than let
+          # tauri-action quietly "skip all uploads" and still exit 0.
+          if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+            echo "::error::Could not resolve a release id for $TAG (got: '$id')"
+            exit 1
+          fi
+
+          echo "Resolved release id $id for $TAG"
           echo "release_id=$id" >> "$GITHUB_OUTPUT"
 
   build:
@@ -134,9 +148,59 @@ jobs:
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
+  # A green build matrix does not mean anything shipped. tauri-action logs
+  # "skipping all uploads" and exits 0 when it cannot see a release, so the only
+  # trustworthy signal is the artifacts themselves. Check before undrafting:
+  # publishing an empty release is what produces a fleet that silently never
+  # updates, which is the single worst outcome this project has.
+  verify-artifacts:
+    name: Verify the release actually has signed artifacts
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check assets and latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+
+          gh api "repos/${{ github.repository }}/releases/$RELEASE_ID/assets" \
+            --jq '.[] | "\(.id) \(.name)"' > assets.txt
+          echo "Assets on the release:"
+          cat assets.txt
+
+          if ! grep -q ' latest\.json$' assets.txt; then
+            echo "::error::latest.json is missing — clients would never see this release."
+            exit 1
+          fi
+
+          # Draft assets need the API rather than the browser download URL.
+          asset_id=$(awk '$2 == "latest.json" { print $1; exit }' assets.txt)
+          gh api "repos/${{ github.repository }}/releases/assets/$asset_id" \
+            -H "Accept: application/octet-stream" > latest.json
+          echo "latest.json:"
+          cat latest.json
+
+          platforms=$(jq -r '.platforms | keys | length' latest.json)
+          if [ "$platforms" -lt 3 ]; then
+            echo "::error::latest.json lists only $platforms platform(s); expected at least 3."
+            exit 1
+          fi
+
+          # An empty signature is the quiet killer: clients verify, refuse, and
+          # report nothing but "up to date".
+          unsigned=$(jq -r '.platforms | to_entries[] | select((.value.signature // "") == "") | .key' latest.json)
+          if [ -n "$unsigned" ]; then
+            echo "::error::Unsigned platforms in latest.json: $unsigned"
+            exit 1
+          fi
+
+          echo "OK: $platforms platforms, all signed."
+
   publish-release:
     name: Publish release
-    needs: [create-release, build]
+    needs: [create-release, verify-artifacts]
     runs-on: ubuntu-latest
     steps:
       # Publishing last is what makes `releases/latest/download/latest.json`
