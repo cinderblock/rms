@@ -192,13 +192,19 @@ exists so a broken *server* still leaves a way in.
 
 Ordered so that the self-updater lands before there's much to update.
 
-- [ ] **Phase 0 — Repo skeleton.** Cargo + Bun workspaces, CI that lints/builds,
-      `.gitignore`, README, licence. Nothing functional.
+- [x] **Phase 0 — Repo skeleton.** Cargo + Bun workspaces, CI that lints/builds,
+      `.gitignore`, README, licence. Nothing functional. *(commit `6c108f2`)*
 - [ ] **Phase 1 — Self-update, proven.** Single Tauri tray app, no server
       involvement. Tray menu: status / check for updates / quit. Hourly timer.
       `release.yml` produces a signed release; the app updates itself from v0.1.0
       to v0.1.1 on a real machine. **This phase is done when a manual tag causes
       an already-installed client to upgrade unattended.**
+      - [x] Tray icon, menu, hidden status window, autostart-at-login
+      - [x] Update check with a re-entrancy gate; timer + menu triggers
+      - [x] `release.yml` with signing, draft-then-publish, version guard
+      - [ ] **Blocked:** GitHub repo doesn't exist yet, so nothing has been
+            pushed and the release workflow has never run. Needs the repo
+            created, the signing secrets added, and one real tag→upgrade test.
 - [ ] **Phase 2 — Control server skeleton.** Bun + Hono, SQLite, passkey setup
       flow with claim token, management UI shell, `/api/health`. No hosts yet.
 - [ ] **Phase 3 — Enrollment + WS transport.** Device keypair, enrollment codes,
@@ -267,5 +273,13 @@ Ordered so that the self-updater lands before there's much to update.
 ## Progress log
 
 - **2026-08-24** — Brief captured, four architecture decisions locked (see
-  above), toolchain verified on the dev box, this plan written. Nothing built
-  yet.
+  above), toolchain verified on the dev box, this plan written.
+- **2026-08-24** — Phase 0 + most of phase 1 built and committed (`6c108f2`).
+  `cargo fmt`, `cargo clippy -D warnings` and a debug build all pass locally on
+  Windows. Updater keypair generated. Hit and fixed one real compile error:
+  `TrayIconBuilder`'s runtime parameter defaults to `Wry`, so a `build<R: Runtime>`
+  signature fails to unify at `.build(app)` — the tray module is deliberately
+  non-generic now.
+  **Not yet verified:** the app has never been *run* (launching it would enable
+  autostart on this machine, which is Cameron's call), and CI has never
+  executed because there is no GitHub remote yet.
