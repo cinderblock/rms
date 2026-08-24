@@ -191,11 +191,19 @@ jobs:
           echo "latest.json:"
           cat latest.json
 
-          platforms=$(jq -r '.platforms | keys | length' latest.json)
-          if [ "$platforms" -lt 3 ]; then
-            echo "::error::latest.json lists only $platforms platform(s); expected at least 3."
-            exit 1
-          fi
+          # Check for each OS family by name, NOT a count. Counting is useless
+          # here: Linux alone emits three keys (linux-x86_64, -appimage, -deb),
+          # so a ">= 3 platforms" test passes happily with no Windows and no
+          # macOS in the file at all.
+          for family in windows darwin linux; do
+            if ! jq -e --arg f "$family" \
+              '.platforms | keys | map(select(startswith($f))) | length > 0' \
+              latest.json >/dev/null; then
+              echo "::error::latest.json has no '$family' entry — that platform would never update."
+              jq -r '.platforms | keys[]' latest.json
+              exit 1
+            fi
+          done
 
           # An empty signature is the quiet killer: clients verify, refuse, and
           # report nothing but "up to date".
@@ -205,7 +213,8 @@ jobs:
             exit 1
           fi
 
-          echo "OK: $platforms platforms, all signed."
+          echo "OK: windows, darwin and linux all present and signed."
+          jq -r '.platforms | keys[]' latest.json
 
   publish-release:
     name: Publish release
