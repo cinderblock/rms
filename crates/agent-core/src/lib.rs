@@ -10,10 +10,12 @@
 
 pub mod config;
 pub mod enroll;
+pub mod frames;
 pub mod identity;
 pub mod keys;
 
 pub use config::{AgentConfig, ConfigError, is_enrolled};
 pub use enroll::{EnrollError, EnrollResponse, enroll};
+pub use frames::{AuthResponse, ClientFrame, ServerFrame};
 pub use identity::DeviceIdentity;
 pub use keys::{DeviceKey, KeyError};
