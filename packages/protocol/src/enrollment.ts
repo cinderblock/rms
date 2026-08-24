@@ -29,13 +29,24 @@ export const PublicKeyB64 = z.base64().length(44);
 export const SignatureB64 = z.base64().length(88);
 
 /**
- * Default generated passphrase is six diceware words (~77 bits). An
- * admin-supplied phrase is allowed but must clear this entropy floor — a shared
- * secret that is reused across every machine and never expires has to be strong
- * on its own, because nothing else is protecting it.
+ * The generated default passphrase is Crockford base32 in hyphenated groups —
+ * `k7m9-x2qp-4rtv-8wny-3jdc`. Five groups of four is 20 characters and 100 bits,
+ * which is both typeable at a keyboard you're standing at and far beyond
+ * brute-forcing.
+ *
+ * Word-based (diceware) phrases would be friendlier still, but a credible one
+ * needs the full 7776-word EFF list; a hand-shortened list quietly costs bits.
+ * Grouped base32 gets honest entropy with nothing to ship.
+ *
+ * An admin may set their own phrase instead. `MIN_PASSPHRASE_LENGTH` is the
+ * floor enforced on those — a blunt instrument, because estimating the entropy
+ * of an arbitrary human-chosen string is not something a length check can do.
+ * It rules out the worst cases, not bad choices in general, so the generated
+ * default is what should normally be used.
  */
-export const DEFAULT_PASSPHRASE_WORDS = 6;
-export const MIN_PASSPHRASE_ENTROPY_BITS = 60;
+export const DEFAULT_PASSPHRASE_GROUPS = 5;
+export const DEFAULT_PASSPHRASE_GROUP_SIZE = 4;
+export const MIN_PASSPHRASE_LENGTH = 16;
 
 export const EnrollRequest = z.object({
   publicKey: PublicKeyB64,

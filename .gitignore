@@ -16,7 +16,9 @@ apps/tray/src-tauri/gen/
 # Local state
 .env
 .env.local
+data/
 *.sqlite
+*.sqlite-shm
 *.sqlite-journal
 *.sqlite-wal
 

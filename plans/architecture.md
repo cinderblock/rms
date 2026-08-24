@@ -270,13 +270,20 @@ Ordered so that the self-updater lands before there's much to update.
             pushed and the release workflow has never run. Needs the repo
             created, the signing secrets added, and one real tag→upgrade test.
 - [ ] **Phase 2 — Control server skeleton.** Bun + Hono, SQLite, passkey setup
-      flow with claim token, management UI shell, `/api/health`. No hosts yet.
+      flow with claim token, management UI shell, `/api/health`.
+      - [x] Hono app, SQLite with an append-only migration runner, `/api/health`
+      - [x] First-boot bootstrap: generates and prints the enrollment passphrase
+            and a one-time admin setup token, both stored argon2id-hashed
+      - [ ] `/setup` passkey registration consuming that token
+      - [ ] Management UI shell
 - [ ] **Phase 3 — Enrollment + WS transport.** Device keypair, passphrase
       enrollment, challenge–response, host list with live online/offline. First
       command: `ping`. Second: `update.check` (the server-side update trigger).
       - [x] Wire schemas for enrollment + auth in `packages/protocol`, with tests
-      - [ ] `POST /api/enroll` with argon2id verification and rate limiting
+      - [x] `POST /api/enroll` with argon2id verification, per-IP and global rate
+            limiting, idempotent retries, and re-enrollment flagging
       - [ ] Rust side: keypair generation, keystore, enrollment client
+      - [ ] WebSocket transport and challenge–response auth
       - [ ] Rust type generation from the zod schemas (JSON Schema → `typify`)
 - [ ] **Phase 4 — Service split.** `agentd` as a Windows service / systemd unit,
       tray demoted to IPC client + session executor. Solve service self-update
@@ -303,6 +310,25 @@ Ordered so that the self-updater lands before there's much to update.
 - **`gh api repos/…/releases/tags/<tag>` returns 404 for *draft* releases.**
   `release.yml` falls back to listing all releases and filtering by tag. Don't
   "simplify" that back to the single call.
+- **`X-Forwarded-For` must be read from the *right*, and only when a proxy is
+  actually configured.** A reverse proxy *appends* the peer it saw, so with Caddy
+  in front the real client is the last entry and everything left of it is
+  attacker-supplied. Taking the leftmost entry — the common mistake — lets a
+  caller present a fresh IP per request and walk straight through the per-IP
+  enrollment budget. `RMD_TRUSTED_PROXY_HOPS` defaults to `0` (ignore the header
+  entirely); it **must** be set to `1` once this is deployed behind Caddy, or
+  every request will look like it came from the proxy and share one budget.
+- **Diceware was dropped for grouped base32.** A credible word list is the full
+  7776-word EFF set; a hand-shortened list quietly costs entropy, and there was
+  no honest way to ship one. `k7m9-x2qp-4rtv-8wny-3jdc` is 100 bits and still
+  typeable. The `MIN_PASSPHRASE_LENGTH` floor on admin-chosen phrases is a blunt
+  instrument and is documented as such — a length check cannot estimate the
+  entropy of a human-chosen string.
+- **Bun has argon2id built in** (`Bun.password.hash`), so no native dependency is
+  needed for passphrase or token hashing.
+- **Check the rate-limit budget *before* verifying the passphrase.** argon2id is
+  deliberately expensive; verifying first would let an unthrottled caller burn
+  the server's CPU without ever guessing anything.
 - **Unverified: `tauri-action` + Bun workspaces.** `apps/tray` has a
   `package.json` but no lockfile of its own (Bun hoists to the root), so
   tauri-action will probably fall back to `npm install` inside `apps/tray`.
@@ -335,18 +361,24 @@ Ordered so that the self-updater lands before there's much to update.
 
 ## Open questions for the user
 
-1. **Where will the control server actually be deployed?** The passkey RP ID has
-   to be a stable hostname decided before Phase 2 lands, and it's baked into
-   client config. My recommendation: a container on `steamboat` behind the
-   existing Caddy, on a subdomain — but that's an infra change, so it needs
-   explicit authorization and should go through the `ops` repo.
-2. **Repo name.** Directory is `remote-mgmt-daemon`; the public GitHub repo can be
-   anything. Since the repo will be public, worth picking a name you like now
-   rather than renaming later.
-3. **Scope of "commands".** Phase 5 needs a catalogue. Arbitrary shell execution
-   is the most useful and the most dangerous; a fixed allowlist of verbs is safer
-   but needs a release to extend. Recommendation: fixed verbs first, with an
-   explicitly-flagged `shell` verb that's off by default per-host.
+Genuinely blocking right now — only these two:
+
+1. **Repo name**, and authorization to create it public on GitHub and push.
+   Public is required for the updater to fetch `latest.json` unauthenticated.
+   Until this exists, CI has never run and Phase 1 cannot be *proven*.
+2. **Authorization to set the two signing secrets** (`gh secret set`).
+
+Needed later, not now — do not treat these as blockers:
+
+3. **Where the control server gets deployed.** Recommendation: a container on
+   `steamboat` behind the existing Caddy, on a subdomain — an infra change, so it
+   needs explicit authorization and should go through the `ops` repo.
+   *This does not gate development:* the passkey RP ID is read from config at
+   runtime, not baked in at build time, so it can be decided when we deploy.
+   (An earlier revision of this plan wrongly listed it as a blocker.)
+4. **Scope of "commands".** Needed for Phase 5, which is three phases out.
+   Recommendation: fixed verbs first, with an explicitly-flagged `shell` verb
+   that's off by default per-host.
 
 ## Progress log
 
@@ -369,3 +401,18 @@ Ordered so that the self-updater lands before there's much to update.
   and CI now has a TypeScript job. Toolchain note: zod 4 (`z.base64().length()`,
   `z.iso.datetime()`) behaves as assumed; TS needs
   `allowImportingTsExtensions` because Bun consumes the sources directly.
+- **2026-08-24** — Enrollment implemented server-side: `apps/server` (Bun + Hono
+  + SQLite), first-boot bootstrap, `POST /api/enroll` with argon2id verification,
+  per-IP sliding-window and global rate limiting, idempotent retries, and
+  re-enrollment flagging. 44 tests pass across both packages; `tsc --noEmit`
+  clean. Smoke-tested end to end against a real running server: first boot
+  printed a passphrase and setup token, a correct enrollment returned 200 with a
+  device id, a wrong passphrase returned 401.
+  **Correction:** the previous entry listed the deployment host and the phase-5
+  command scope as blockers. They are not — the RP ID is runtime config, and
+  phase 5 is three phases away. Only the GitHub repo and the signing secrets
+  actually block anything.
+  **Mistake to learn from:** cleaning up after the smoke test, a blanket
+  `Get-Process bun | Stop-Process -Force` killed two unrelated Bun processes on
+  Cameron's machine, one of which had been running for four days. Kill the
+  specific PID that was started, never every process sharing a name.

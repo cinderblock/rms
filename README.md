@@ -35,6 +35,8 @@ apps/tray/          Tauri tray app — status window, update triggers, and
                     (from phase 4) the user-session command executor
 apps/agentd/        privileged background service                 [phase 4]
 apps/server/        Bun + Hono control server & management UI      [phase 2]
+apps/server/        Bun + Hono control server — enrollment today,
+                    passkey auth and management UI next
 crates/             shared Rust: transport, wire types, local IPC  [phase 3+]
 packages/protocol/  zod schemas — the single source of truth for
                     anything crossing a network boundary
@@ -59,6 +61,31 @@ limited per-IP and globally, the phrase is stored argon2id-hashed, enrollment ca
 be switched off entirely, and every new device shows as unacknowledged in the UI
 until you dismiss it. Anyone holding the passphrase can add a host — they cannot
 issue commands to one.
+
+## Running the control server
+
+```sh
+bun run --cwd apps/server dev
+```
+
+On first boot it prints the enrollment passphrase and a one-time admin setup
+token, once. Both are stored argon2id-hashed, so there is no way to recover them
+afterwards — write them down.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `RMD_DB` | `./data/rmd.sqlite` | SQLite file; created on demand |
+| `RMD_PORT` | `8787` | |
+| `RMD_SERVER_NAME` | `control` | Echoed to clients so they can confirm where they landed |
+| `RMD_ENROLLMENT_PASSPHRASE` | *generated* | Set to choose your own on first boot |
+| `RMD_TRUSTED_PROXY_HOPS` | `0` | Number of reverse proxies in front |
+
+`RMD_TRUSTED_PROXY_HOPS` deserves a note. It defaults to `0`, which means
+`X-Forwarded-For` is ignored entirely — trusting that header when nothing is
+rewriting it lets a caller claim a fresh IP on every request and walk straight
+through the per-IP rate limit. **Set it to `1` when deploying behind a single
+reverse proxy such as Caddy**, otherwise every request will appear to come from
+the proxy and share one budget.
 
 ## Developing
 
