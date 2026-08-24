@@ -8,27 +8,61 @@
   </head>
   <body>
     <main>
-      <h1>RMS</h1>
+      <h1>Remote Management System</h1>
 
-      <dl class="facts">
-        <dt>Version</dt>
-        <dd id="version">…</dd>
-        <dt>Control server</dt>
-        <dd id="server">not configured</dd>
-      </dl>
+      <!-- Shown until this machine has joined a fleet. -->
+      <section id="enroll-view" hidden>
+        <p class="hint">
+          This machine hasn't joined a control server yet. Enter the server
+          address and the enrollment passphrase.
+        </p>
+
+        <form id="enroll-form">
+          <label class="field">
+            <span>Control server</span>
+            <input
+              type="url"
+              id="server-url"
+              placeholder="https://control.example.com"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>Enrollment passphrase</span>
+            <input type="password" id="passphrase" autocomplete="off" required />
+          </label>
+
+          <button type="submit" id="enroll-button">Join fleet</button>
+        </form>
+      </section>
+
+      <!-- Shown once enrolled. -->
+      <section id="status-view" hidden>
+        <dl class="facts">
+          <dt>Version</dt>
+          <dd id="version">…</dd>
+          <dt>Control server</dt>
+          <dd id="server">…</dd>
+          <dt>Device</dt>
+          <dd id="device" class="mono">…</dd>
+        </dl>
+
+        <button id="check">Check for updates</button>
+        <button id="unenroll" class="danger">Leave fleet</button>
+
+        <p class="hint">
+          Updates are also checked automatically every hour, and can be
+          triggered by the control server.
+        </p>
+      </section>
 
       <label class="row">
         <input type="checkbox" id="autostart" />
         <span>Start automatically at login</span>
       </label>
 
-      <button id="check">Check for updates</button>
       <p id="result" role="status"></p>
-
-      <p class="hint">
-        Updates are also checked automatically every hour, and can be triggered
-        by the control server.
-      </p>
     </main>
     <script type="module" src="main.js"></script>
   </body>

@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::config::{AgentConfig, ConfigError};
 use crate::identity::DeviceIdentity;
 use crate::keys::{DeviceKey, KeyError};
 
@@ -43,6 +44,9 @@ pub enum EnrollError {
     #[error("{0}")]
     Key(#[from] KeyError),
 
+    #[error("{0}")]
+    Config(#[from] ConfigError),
+
     #[error("the enrollment passphrase was not accepted")]
     InvalidPassphrase,
 
@@ -64,9 +68,13 @@ pub enum EnrollError {
     Unexpected { url: String, status: u16 },
 }
 
-/// Enroll this machine and persist the resulting key on success.
+/// Enroll this machine, persisting the key and the config on success.
 ///
 /// `base_url` is what the user typed — trailing slashes and all.
+///
+/// Nothing is written until the server has accepted the key. A key or a config
+/// left behind by a failed attempt is worse than no state at all: the agent
+/// would present a credential the server has never heard of, forever.
 pub async fn enroll(
     client: &reqwest::Client,
     base_url: &str,
@@ -75,7 +83,8 @@ pub async fn enroll(
 ) -> Result<(EnrollResponse, DeviceKey), EnrollError> {
     let key = DeviceKey::generate();
     let identity = DeviceIdentity::collect(agent_version);
-    let url = format!("{}/api/enroll", base_url.trim_end_matches('/'));
+    let server_url = base_url.trim_end_matches('/').to_owned();
+    let url = format!("{server_url}/api/enroll");
 
     let response = client
         .post(&url)
@@ -91,8 +100,24 @@ pub async fn enroll(
 
     if status.is_success() {
         let body: EnrollResponse = response.json().await?;
-        // Only now is the key worth keeping.
+
+        // Only now is any of this worth keeping. The key goes first because it
+        // is the credential; if the config write then fails, `is_enrolled()`
+        // reports false and the user is sent back to the enrollment form, which
+        // is recoverable. The reverse order is equally recoverable — what must
+        // not happen is either being written before the server said yes.
         key.store()?;
+        AgentConfig {
+            server_url,
+            device_id: body.device_id.clone(),
+            server_name: body.server_name.clone(),
+            enrolled_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0),
+        }
+        .save()?;
+
         tracing::info!(
             device_id = %body.device_id,
             server = %body.server_name,

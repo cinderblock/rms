@@ -13,8 +13,8 @@
       {
         "label": "status",
         "title": "RMS",
-        "width": 420,
-        "height": 320,
+        "width": 440,
+        "height": 480,
         "resizable": false,
         "visible": false,
         "skipTaskbar": true,

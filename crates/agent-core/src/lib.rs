@@ -8,10 +8,12 @@
 //!
 //! See `plans/architecture.md` → "Three-process model on a managed host".
 
+pub mod config;
 pub mod enroll;
 pub mod identity;
 pub mod keys;
 
+pub use config::{AgentConfig, ConfigError, is_enrolled};
 pub use enroll::{EnrollError, EnrollResponse, enroll};
 pub use identity::DeviceIdentity;
 pub use keys::{DeviceKey, KeyError};

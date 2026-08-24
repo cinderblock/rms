@@ -10,21 +10,77 @@ use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 use updater::{Trigger, UpdateGate};
 
+// camelCase to match what the frontend reads. Tauri handles the reverse
+// direction for command *arguments* automatically, but not for return values.
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Status {
     version: String,
     autostart: bool,
-    /// Set in phase 3, when there is actually a server to be connected to.
-    server: Option<String>,
+    enrolled: bool,
+    server_url: Option<String>,
+    server_name: Option<String>,
+    device_id: Option<String>,
 }
 
 #[tauri::command]
 fn get_status(app: AppHandle) -> Status {
+    // A config that fails to parse is reported as "not enrolled" rather than
+    // propagated: the status window is how the user would fix it, so it must
+    // render regardless.
+    let config = rms_agent_core::AgentConfig::load().ok().flatten();
+
     Status {
         version: app.package_info().version.to_string(),
         autostart: app.autolaunch().is_enabled().unwrap_or(false),
-        server: None,
+        enrolled: rms_agent_core::is_enrolled(),
+        server_url: config.as_ref().map(|c| c.server_url.clone()),
+        server_name: config.as_ref().map(|c| c.server_name.clone()),
+        device_id: config.as_ref().map(|c| c.device_id.clone()),
     }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Enrolled {
+    device_id: String,
+    display_name: String,
+    server_name: String,
+    /// Surfaced so the user can go merge the records rather than quietly ending
+    /// up with two entries for one machine.
+    probable_reenrollment_of: Option<String>,
+}
+
+#[tauri::command]
+async fn enroll(
+    app: AppHandle,
+    server_url: String,
+    passphrase: String,
+) -> Result<Enrolled, String> {
+    let version = app.package_info().version.to_string();
+    let client = reqwest::Client::new();
+
+    let (response, _key) =
+        rms_agent_core::enroll(&client, server_url.trim(), passphrase.trim(), &version)
+            .await
+            .map_err(|err| err.to_string())?;
+
+    Ok(Enrolled {
+        device_id: response.device_id,
+        display_name: response.display_name,
+        server_name: response.server_name,
+        probable_reenrollment_of: response.probable_reenrollment_of,
+    })
+}
+
+/// Forget this machine's enrollment locally. The server-side device record
+/// survives and has to be removed there — saying so matters, because otherwise
+/// re-enrolling silently leaves an orphan behind.
+#[tauri::command]
+fn unenroll() -> Result<(), String> {
+    rms_agent_core::DeviceKey::delete().map_err(|err| err.to_string())?;
+    rms_agent_core::AgentConfig::clear().map_err(|err| err.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -81,7 +137,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_status,
             check_for_updates,
-            set_autostart
+            set_autostart,
+            enroll,
+            unenroll
         ])
         .on_window_event(|window, event| {
             // Closing the status window must not exit the agent; it is a
@@ -100,6 +158,16 @@ fn main() {
             // logging in to press anything.
             if let Err(err) = handle.autolaunch().enable() {
                 tracing::warn!(%err, "could not enable autostart");
+            }
+
+            // An agent that hasn't enrolled can't do anything, and a tray icon
+            // gives no hint that it's waiting on you. Show the window on first
+            // run; afterwards it stays hidden until asked for.
+            if !rms_agent_core::is_enrolled()
+                && let Some(window) = handle.get_webview_window("status")
+            {
+                let _ = window.show();
+                let _ = window.set_focus();
             }
 
             updater::spawn_timer(handle, updater::DEFAULT_INTERVAL);

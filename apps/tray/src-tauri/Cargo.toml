@@ -15,6 +15,14 @@ path = "src/main.rs"
 tauri-build = { workspace = true, features = [] }
 
 [dependencies]
+rms-agent-core.workspace = true
+reqwest = { workspace = true, features = [
+  "json",
+  "charset",
+  "http2",
+  "rustls",
+  "rustls-native-certs",
+], default-features = false }
 tauri = { workspace = true, features = ["tray-icon", "image-png"] }
 tauri-plugin-updater.workspace = true
 tauri-plugin-autostart.workspace = true

@@ -17,6 +17,7 @@ gethostname.workspace = true
 keyring.workspace = true
 os_info.workspace = true
 getrandom.workspace = true
+directories.workspace = true
 # rustls rather than the platform TLS stack, for one behaviour on every OS.
 # `rustls-native-certs` reads the OS trust store, so a self-hosted server behind
 # an internal CA works without recompiling the agent.

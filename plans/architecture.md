@@ -287,8 +287,11 @@ Ordered so that the self-updater lands before there's much to update.
             keypair in the OS keystore, enrollment client. Verified against the
             real server: a Rust client enrolled into the Bun server, and the
             stored record matched the key it presented.
-      - [ ] Persist the server URL + device id locally after enrollment
-      - [ ] Wire enrollment into the tray's first-run flow
+      - [x] Persist the server URL + device id locally after enrollment
+            (`AgentConfig`, atomic write, no secrets in the file)
+      - [x] Wire enrollment into the tray: `enroll` / `unenroll` commands, a
+            first-run form, and the status window auto-shown when unenrolled.
+            **Not yet run** — see the progress log.
       - [ ] WebSocket transport and challenge–response auth
       - [ ] Rust type generation from the zod schemas (JSON Schema → `typify`)
 - [ ] **Phase 4 — Service split.** `agentd` as a Windows service / systemd unit,
@@ -463,3 +466,17 @@ Needed later, not now — do not treat these as blockers:
   audit trail recorded both the success and a wrong-passphrase failure. Also
   confirmed the keystore round-trips store → load → delete against the real
   Windows Credential Manager.
+- **2026-08-24** — Enrollment wired into the tray: `AgentConfig` persistence
+  (atomic temp-file + rename, no secrets in it), `enroll` / `unenroll` commands,
+  a first-run form, and the status window auto-shown while unenrolled. 18 Rust
+  tests, clippy `-D warnings` and fmt clean.
+  **Deliberately not verified: the tray app has still never been launched.**
+  Starting it writes an autostart entry to `HKCU\...\Run` and puts a window on
+  Cameron's desktop, and I can't see a desktop GUI to check the result anyway —
+  so running it would cost a machine change and buy only "it didn't panic on
+  startup". Left for Cameron to run `bun run tray:dev` and eyeball, or to
+  authorise. Everything reachable without a GUI *is* covered by tests.
+  Gotcha found while wiring it: Tauri converts camelCase command *arguments* to
+  snake_case automatically, but does **not** touch return values — a `Serialize`
+  struct needs `#[serde(rename_all = "camelCase")]` or the frontend silently
+  reads `undefined`.

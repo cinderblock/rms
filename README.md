@@ -47,7 +47,8 @@ plans/              living design docs — read these first
 
 Install, point the agent at your control server, and give it the **enrollment
 passphrase**. That's it — no round trip through the management UI to mint a
-per-device code first.
+per-device code first. On first run the tray app opens its window and asks for
+exactly those two things.
 
 The agent generates an Ed25519 keypair locally, sends the public half along with
 a description of the machine, and stores the private half in the OS keystore.
