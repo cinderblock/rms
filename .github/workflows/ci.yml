@@ -13,6 +13,24 @@ permissions:
   contents: read
 
 jobs:
+  typescript:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
   rust:
     name: Rust (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

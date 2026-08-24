@@ -11,7 +11,8 @@
     "tray:build": "bun run --cwd apps/tray build",
     "fmt": "cargo fmt --all",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
-    "check": "cargo fmt --all -- --check && bun run lint"
+    "typecheck": "bun run --filter '*' typecheck",
+    "check": "bun run typecheck && bun test && cargo fmt --all -- --check && bun run lint"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.0"

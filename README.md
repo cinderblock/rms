@@ -36,9 +36,29 @@ apps/tray/          Tauri tray app — status window, update triggers, and
 apps/agentd/        privileged background service                 [phase 4]
 apps/server/        Bun + Hono control server & management UI      [phase 2]
 crates/             shared Rust: transport, wire types, local IPC  [phase 3+]
-packages/           TypeScript: wire schemas, client SDK, web UI   [phase 2+]
+packages/protocol/  zod schemas — the single source of truth for
+                    anything crossing a network boundary
 plans/              living design docs — read these first
 ```
+
+## Joining a machine to the fleet
+
+Install, point the agent at your control server, and give it the **enrollment
+passphrase**. That's it — no round trip through the management UI to mint a
+per-device code first.
+
+The agent generates an Ed25519 keypair locally, sends the public half along with
+a description of the machine, and stores the private half in the OS keystore.
+The server never sees the private key. From that moment the passphrase is
+irrelevant to that device: it authenticates by signing a server-issued nonce, so
+rotating the passphrase doesn't disturb anything already enrolled, and revoking a
+device is just deleting its public key.
+
+Because the passphrase is shared and long-lived, the enrollment endpoint is rate
+limited per-IP and globally, the phrase is stored argon2id-hashed, enrollment can
+be switched off entirely, and every new device shows as unacknowledged in the UI
+until you dismiss it. Anyone holding the passphrase can add a host — they cannot
+issue commands to one.
 
 ## Developing
 
